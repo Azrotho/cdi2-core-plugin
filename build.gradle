@@ -1,6 +1,10 @@
 plugins {
     id 'java'
+    id 'maven-publish'
 }
+
+group = 'fr.citedesiles'
+version = '1.0.0'
 
 repositories {
     mavenCentral()
@@ -14,6 +18,14 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+        }
+    }
 }
 
 java {
