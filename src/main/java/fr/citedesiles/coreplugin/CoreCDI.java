@@ -2,6 +2,7 @@ package fr.citedesiles.coreplugin;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import java.io.IOException;
@@ -10,6 +11,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Client HTTP pour l'API CDI2 (cdi2-core-server).
@@ -81,23 +84,45 @@ public class CoreCDI {
 
     // player
 
-    public JsonObject getPlayer(String uuid) {
+    public Player getPlayer(String uuid) {
         JsonObject res = request("GET", "/player/" + uuid, null);
-        return res.getAsJsonObject("player");
+        return Player.fromJson(res.getAsJsonObject("player"));
     }
 
-    public JsonObject getPlayerByDiscord(String discordId) {
+    public Player getPlayerByDiscord(String discordId) {
         JsonObject res = request("GET", "/player/discord/" + discordId, null);
-        return res.getAsJsonObject("player");
+        return Player.fromJson(res.getAsJsonObject("player"));
     }
 
-    public JsonArray getPlayers() {
+    public List<Player> getPlayers() {
         JsonObject res = request("GET", "/players", null);
-        return res.getAsJsonArray("players");
+        JsonArray arr = res.getAsJsonArray("players");
+        List<Player> players = new ArrayList<>();
+        for (JsonElement e : arr) {
+            players.add(Player.fromJson(e.getAsJsonObject()));
+        }
+        return players;
     }
 
     public void deletePlayer(String uuid) {
         request("DELETE", "/player/" + uuid, null);
+    }
+
+    // team
+
+    public Team getTeam(int id) {
+        JsonObject res = request("GET", "/team/" + id, null);
+        return Team.fromJson(res.getAsJsonObject("team"));
+    }
+
+    public List<Player> getTeamPlayers(int teamId) {
+        JsonObject res = request("GET", "/team/" + teamId + "/players", null);
+        JsonArray arr = res.getAsJsonArray("players");
+        List<Player> players = new ArrayList<>();
+        for (JsonElement e : arr) {
+            players.add(Player.fromJson(e.getAsJsonObject()));
+        }
+        return players;
     }
 
     // interne
@@ -139,7 +164,8 @@ public class CoreCDI {
         } catch (ApiException e) {
             throw e;
         } catch (IOException | InterruptedException e) {
-            throw new ApiException(0, "Network error: " + e.getMessage());
+            String msg = e.getMessage();
+            throw new ApiException(0, "Network error: " + (msg != null ? msg : e.getClass().getSimpleName()));
         }
     }
 

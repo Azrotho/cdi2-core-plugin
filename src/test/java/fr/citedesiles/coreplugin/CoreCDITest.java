@@ -1,9 +1,9 @@
 package fr.citedesiles.coreplugin;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import fr.citedesiles.coreplugin.CoreCDI.ApiException;
 import org.junit.jupiter.api.*;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -26,7 +26,7 @@ class CoreCDITest {
         CoreCDI dead = new CoreCDI("http://127.0.0.1:19999", "token");
         ApiException ex = assertThrows(ApiException.class, () -> dead.ping());
         assertEquals(0, ex.getStatusCode());
-        assertTrue(ex.getMessage().contains("Network error"));
+        assertTrue(ex.getMessage().startsWith("Network error"));
     }
 
     // 2. Tests avec serveur (vérif endpoints, gestion des erreurs, etc.)
@@ -149,18 +149,19 @@ class CoreCDITest {
         }
 
         @Test @Order(20)
-        void getPlayersReturnsArray() {
-            JsonArray players = api.getPlayers();
+        void getPlayersReturnsList() {
+            List<Player> players = api.getPlayers();
             assertNotNull(players);
             assertTrue(players.size() >= 1);
         }
 
         @Test @Order(21)
         void getPlayerByUuidFound() {
-            JsonObject p = api.getPlayer(TEST_UUID);
-            assertEquals(TEST_UUID, p.get("uuid").getAsString());
-            assertEquals(TEST_DISCORD, p.get("discord_id").getAsString());
-            assertEquals(TEST_NAME, p.get("name").getAsString());
+            Player p = api.getPlayer(TEST_UUID);
+            assertEquals(TEST_UUID, p.uuid());
+            assertEquals(TEST_DISCORD, p.discordId());
+            assertEquals(TEST_NAME, p.name());
+            assertEquals(-1, p.team());
         }
 
         @Test @Order(22)
@@ -172,8 +173,8 @@ class CoreCDITest {
 
         @Test @Order(23)
         void getPlayerByDiscordFound() {
-            JsonObject p = api.getPlayerByDiscord(TEST_DISCORD);
-            assertEquals(TEST_DISCORD, p.get("discord_id").getAsString());
+            Player p = api.getPlayerByDiscord(TEST_DISCORD);
+            assertEquals(TEST_DISCORD, p.discordId());
         }
 
         @Test @Order(24)
