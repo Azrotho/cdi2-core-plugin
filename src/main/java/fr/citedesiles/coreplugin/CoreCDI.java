@@ -1,6 +1,7 @@
 package fr.citedesiles.coreplugin;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import java.io.IOException;
@@ -62,9 +63,10 @@ public class CoreCDI {
         request("POST", "/teams", body);
     }
 
-    public String requestVerification(String uuid) {
+    public String requestVerification(String uuid, String playerName) {
         JsonObject body = new JsonObject();
         body.addProperty("uuid", uuid);
+        body.addProperty("player_name", playerName);
         JsonObject res = request("POST", "/verify", body);
         return res.get("code").getAsString();
     }
@@ -75,6 +77,27 @@ public class CoreCDI {
         body.addProperty("code", code);
         body.addProperty("discordId", discordId);
         request("POST", "/verify/check", body);
+    }
+
+    // player
+
+    public JsonObject getPlayer(String uuid) {
+        JsonObject res = request("GET", "/player/" + uuid, null);
+        return res.getAsJsonObject("player");
+    }
+
+    public JsonObject getPlayerByDiscord(String discordId) {
+        JsonObject res = request("GET", "/player/discord/" + discordId, null);
+        return res.getAsJsonObject("player");
+    }
+
+    public JsonArray getPlayers() {
+        JsonObject res = request("GET", "/players", null);
+        return res.getAsJsonArray("players");
+    }
+
+    public void deletePlayer(String uuid) {
+        request("DELETE", "/player/" + uuid, null);
     }
 
     // interne
