@@ -7,7 +7,7 @@ repositories {
 }
 
 dependencies {
-    // Aucune dépendance pour le moment
+    implementation 'com.google.code.gson:gson:2.13.1'
 }
 
 java {
