@@ -57,6 +57,19 @@ public class CoreCDI {
         return res.get("user").getAsString();
     }
 
+    public String createToken(String owner) {
+        JsonObject body = new JsonObject();
+        body.addProperty("owner", owner);
+        JsonObject res = request("POST", "/token", body);
+        return res.get("token").getAsString();
+    }
+
+    public void deleteToken(String tokenToDelete) {
+        JsonObject body = new JsonObject();
+        body.addProperty("token", tokenToDelete);
+        request("DELETE", "/token", body);
+    }
+
     public void createTeam(String name, String tag, String color, String leader) {
         JsonObject body = new JsonObject();
         body.addProperty("name", name);
