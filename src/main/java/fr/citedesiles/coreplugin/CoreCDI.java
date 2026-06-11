@@ -95,6 +95,19 @@ public class CoreCDI {
         request("POST", "/verify/check", body);
     }
 
+    /**
+     * Lie un compte Discord via le code de vérification (sans UUID).
+     * Utilisé par le bot Discord.
+     * @return le nom du joueur lié
+     */
+    public String linkDiscord(String code, String discordId) {
+        JsonObject body = new JsonObject();
+        body.addProperty("code", code);
+        body.addProperty("discordId", discordId);
+        JsonObject res = request("POST", "/verify/check", body);
+        return res.has("player_name") ? res.get("player_name").getAsString() : null;
+    }
+
     // player
 
     public Player getPlayer(String uuid) {
