@@ -42,7 +42,11 @@ class CoreCDITest {
         private static final String TEST_UUID = "test-junit-uuid";
         private static final String TEST_DISCORD = "test-junit-discord";
         private static final String TEST_NAME = "JUnitPlayer";
+        private static final String TEST_UUID2 = "test-junit-uuid2";
+        private static final String TEST_DISCORD2 = "test-junit-discord2";
+        private static final String TEST_NAME2 = "JUnitPlayer2";
         private static String currentCode;
+        private static String createdToken;
 
         @BeforeAll
         static void setup() {
@@ -59,6 +63,10 @@ class CoreCDITest {
         static void cleanup() {
             if (apiUrl == null) return;
             try { api.deletePlayer(TEST_UUID); } catch (Exception ignored) {}
+            try { api.deletePlayer(TEST_UUID2); } catch (Exception ignored) {}
+            if (createdToken != null) {
+                try { api.deleteToken(createdToken); } catch (Exception ignored) {}
+            }
         }
 
         @Test @Order(1)
@@ -113,14 +121,105 @@ class CoreCDITest {
             api.createTeam("JUnitTeam", "JUT", "#ff0000", "junit-leader");
         }
 
+        @Test @Order(9)
+        void getTeamsReturnsList() {
+            List<Team> teams = api.getTeams();
+            assertNotNull(teams);
+            assertTrue(teams.size() >= 1);
+            assertTrue(teams.stream().anyMatch(t -> t.name().equals("JUnitTeam")));
+        }
+
         @Test @Order(10)
+        void getTeamByIdFound() {
+            Team found = api.getTeams().stream()
+                    .filter(t -> t.name().equals("JUnitTeam"))
+                    .findFirst()
+                    .orElseThrow();
+            Team t = api.getTeam(found.id());
+            assertEquals("JUnitTeam", t.name());
+            assertEquals("JUT", t.tag());
+            assertEquals("#ff0000", t.color());
+        }
+
+        @Test @Order(11)
+        void getTeamByIdNotFound() {
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> api.getTeam(999999));
+            assertEquals(404, ex.getStatusCode());
+        }
+
+        @Test @Order(12)
+        void getTeamPlayersReturnsList() {
+            Team found = api.getTeams().stream()
+                    .filter(t -> t.name().equals("JUnitTeam"))
+                    .findFirst()
+                    .orElseThrow();
+            List<Player> players = api.getTeamPlayers(found.id());
+            assertNotNull(players);
+        }
+
+        @Test @Order(13)
+        void getTeamsUnauthorized() {
+            CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> anon.getTeams());
+            assertEquals(401, ex.getStatusCode());
+        }
+
+        @Test @Order(14)
+        void requestVerificationMissingFields() {
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> api.requestVerification("", ""));
+            assertEquals(400, ex.getStatusCode());
+        }
+
+        @Test @Order(15)
+        void requestVerificationUnauthorized() {
+            CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> anon.requestVerification(TEST_UUID, TEST_NAME));
+            assertEquals(401, ex.getStatusCode());
+        }
+
+        @Test @Order(16)
+        void createTokenMissingOwner() {
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> api.createToken(""));
+            assertEquals(400, ex.getStatusCode());
+        }
+
+        @Test @Order(17)
+        void createTokenUnauthorized() {
+            CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> anon.createToken("test-owner"));
+            assertEquals(403, ex.getStatusCode());
+        }
+
+        @Test @Order(18)
+        void createTokenSuccess() {
+            createdToken = api.createToken("test-owner");
+            assertNotNull(createdToken);
+            assertEquals(128, createdToken.length());
+            // Vérifie que le token est valide
+            assertEquals("test-owner", api.testToken(createdToken));
+        }
+
+        @Test @Order(19)
+        void deleteTokenMissingToken() {
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> api.deleteToken(""));
+            assertEquals(400, ex.getStatusCode());
+        }
+
+        @Test @Order(20)
         void requestVerificationSuccess() {
             currentCode = api.requestVerification(TEST_UUID, TEST_NAME);
             assertNotNull(currentCode);
             assertEquals(8, currentCode.length());
         }
 
-        @Test @Order(11)
+        @Test @Order(21)
         void checkVerificationInvalidCode() {
             ApiException ex = assertThrows(ApiException.class,
                     () -> api.checkVerification(TEST_UUID, "WRONG01", TEST_DISCORD));
@@ -128,19 +227,19 @@ class CoreCDITest {
             assertEquals("Invalid code", ex.getMessage());
         }
 
-        @Test @Order(12)
+        @Test @Order(22)
         void checkVerificationNotFound() {
             ApiException ex = assertThrows(ApiException.class,
                     () -> api.checkVerification("uuid-inexistant", "ABC12345", "discord"));
             assertEquals(404, ex.getStatusCode());
         }
 
-        @Test @Order(13)
+        @Test @Order(23)
         void checkVerificationSuccess() {
             api.checkVerification(TEST_UUID, currentCode, TEST_DISCORD);
         }
 
-        @Test @Order(14)
+        @Test @Order(24)
         void requestVerificationAfterPlayerExists() {
             ApiException ex = assertThrows(ApiException.class,
                     () -> api.requestVerification(TEST_UUID, TEST_NAME));
@@ -148,14 +247,61 @@ class CoreCDITest {
             assertEquals("Player already verified", ex.getMessage());
         }
 
-        @Test @Order(20)
+        @Test @Order(25)
+        void checkVerificationMissingFields() {
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> api.checkVerification(TEST_UUID, "", ""));
+            assertEquals(400, ex.getStatusCode());
+        }
+
+        @Test @Order(26)
+        void deleteTokenUnauthorized() {
+            CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> anon.deleteToken(createdToken));
+            assertEquals(401, ex.getStatusCode());
+        }
+
+        @Test @Order(27)
+        void deleteTokenSuccess() {
+            assertNotNull(createdToken);
+            api.deleteToken(createdToken);
+            // Vérifie que le token n'est plus valide
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> api.testToken(createdToken));
+            assertEquals(401, ex.getStatusCode());
+            createdToken = null;
+        }
+
+        @Test @Order(28)
+        void linkDiscordSuccess() {
+            // Demande une vérification pour un 2e joueur
+            String code = api.requestVerification(TEST_UUID2, TEST_NAME2);
+            assertNotNull(code);
+            // Lie le compte Discord avec linkDiscord (sans UUID)
+            String playerName = api.linkDiscord(code, TEST_DISCORD2);
+            assertEquals(TEST_NAME2, playerName);
+            // Vérifie que le joueur est bien créé
+            Player p = api.getPlayer(TEST_UUID2);
+            assertEquals(TEST_NAME2, p.name());
+            assertEquals(TEST_DISCORD2, p.discordId());
+        }
+
+        @Test @Order(29)
+        void linkDiscordInvalidCode() {
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> api.linkDiscord("FAUXCODE", "discord-inexistant"));
+            assertEquals(404, ex.getStatusCode());
+        }
+
+        @Test @Order(30)
         void getPlayersReturnsList() {
             List<Player> players = api.getPlayers();
             assertNotNull(players);
             assertTrue(players.size() >= 1);
         }
 
-        @Test @Order(21)
+        @Test @Order(31)
         void getPlayerByUuidFound() {
             Player p = api.getPlayer(TEST_UUID);
             assertEquals(TEST_UUID, p.uuid());
@@ -164,27 +310,27 @@ class CoreCDITest {
             assertEquals(-1, p.team());
         }
 
-        @Test @Order(22)
+        @Test @Order(32)
         void getPlayerByUuidNotFound() {
             ApiException ex = assertThrows(ApiException.class,
                     () -> api.getPlayer("uuid-inexistant"));
             assertEquals(404, ex.getStatusCode());
         }
 
-        @Test @Order(23)
+        @Test @Order(33)
         void getPlayerByDiscordFound() {
             Player p = api.getPlayerByDiscord(TEST_DISCORD);
             assertEquals(TEST_DISCORD, p.discordId());
         }
 
-        @Test @Order(24)
+        @Test @Order(34)
         void getPlayerByDiscordNotFound() {
             ApiException ex = assertThrows(ApiException.class,
                     () -> api.getPlayerByDiscord("discord-inexistant"));
             assertEquals(404, ex.getStatusCode());
         }
 
-        @Test @Order(25)
+        @Test @Order(35)
         void deletePlayerUnauthorized() {
             CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
             ApiException ex = assertThrows(ApiException.class,
@@ -192,7 +338,7 @@ class CoreCDITest {
             assertEquals(401, ex.getStatusCode());
         }
 
-        @Test @Order(26)
+        @Test @Order(36)
         void deletePlayerSuccess() {
             api.deletePlayer(TEST_UUID);
             ApiException ex = assertThrows(ApiException.class,
@@ -200,7 +346,7 @@ class CoreCDITest {
             assertEquals(404, ex.getStatusCode());
         }
 
-        @Test @Order(27)
+        @Test @Order(37)
         void unauthorizedReturns401() {
             CoreCDI anon = new CoreCDI(apiUrl, "bidon");
             ApiException ex = assertThrows(ApiException.class,

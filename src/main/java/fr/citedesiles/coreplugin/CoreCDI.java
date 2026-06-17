@@ -111,12 +111,12 @@ public class CoreCDI {
     // player
 
     public Player getPlayer(String uuid) {
-        JsonObject res = request("GET", "/player/" + uuid, null);
+        JsonObject res = request("GET", "/players/" + uuid, null);
         return Player.fromJson(res.getAsJsonObject("player"));
     }
 
     public Player getPlayerByDiscord(String discordId) {
-        JsonObject res = request("GET", "/player/discord/" + discordId, null);
+        JsonObject res = request("GET", "/players/discord/" + discordId, null);
         return Player.fromJson(res.getAsJsonObject("player"));
     }
 
@@ -131,18 +131,28 @@ public class CoreCDI {
     }
 
     public void deletePlayer(String uuid) {
-        request("DELETE", "/player/" + uuid, null);
+        request("DELETE", "/players/" + uuid, null);
     }
 
     // team
 
+    public List<Team> getTeams() {
+        JsonObject res = request("GET", "/teams", null);
+        JsonArray arr = res.getAsJsonArray("teams");
+        List<Team> teams = new ArrayList<>();
+        for (JsonElement e : arr) {
+            teams.add(Team.fromJson(e.getAsJsonObject()));
+        }
+        return teams;
+    }
+
     public Team getTeam(int id) {
-        JsonObject res = request("GET", "/team/" + id, null);
+        JsonObject res = request("GET", "/teams/" + id, null);
         return Team.fromJson(res.getAsJsonObject("team"));
     }
 
     public List<Player> getTeamPlayers(int teamId) {
-        JsonObject res = request("GET", "/team/" + teamId + "/players", null);
+        JsonObject res = request("GET", "/teams/" + teamId + "/players", null);
         JsonArray arr = res.getAsJsonArray("players");
         List<Player> players = new ArrayList<>();
         for (JsonElement e : arr) {
