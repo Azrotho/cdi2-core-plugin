@@ -177,6 +177,37 @@ public class CoreCDI {
         return players;
     }
 
+    public void deleteTeam(int id) {
+        request("DELETE", "/teams/" + id, null);
+    }
+
+    // transaction
+
+    public void createTransaction(int teamId, String memberUuid, double totalValue, String reason, int quantity) {
+        JsonObject body = new JsonObject();
+        body.addProperty("team_id", teamId);
+        body.addProperty("member_uuid", memberUuid);
+        body.addProperty("total_value", totalValue);
+        body.addProperty("reason", reason);
+        body.addProperty("quantity", quantity);
+        request("POST", "/transaction", body);
+    }
+
+    public List<Transaction> getTeamTransactions(int teamId) {
+        JsonObject res = request("GET", "/transactions/" + teamId, null);
+        JsonArray arr = res.getAsJsonArray("transactions");
+        List<Transaction> transactions = new ArrayList<>();
+        for (JsonElement e : arr) {
+            transactions.add(Transaction.fromJson(e.getAsJsonObject()));
+        }
+        return transactions;
+    }
+
+    public double getTeamMoney(int teamId) {
+        JsonObject res = request("GET", "/team/" + teamId + "/money", null);
+        return res.get("total_money").getAsDouble();
+    }
+
     // interne
 
     private JsonObject request(String method, String path, JsonObject body) {

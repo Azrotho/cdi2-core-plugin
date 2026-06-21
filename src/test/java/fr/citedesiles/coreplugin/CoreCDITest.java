@@ -47,6 +47,7 @@ class CoreCDITest {
         private static final String TEST_NAME2 = "JUnitPlayer2";
         private static String currentCode;
         private static String createdToken;
+        private static int testTeamId = -1;
 
         @BeforeAll
         static void setup() {
@@ -66,6 +67,9 @@ class CoreCDITest {
             try { api.deletePlayer(TEST_UUID2); } catch (Exception ignored) {}
             if (createdToken != null) {
                 try { api.deleteToken(createdToken); } catch (Exception ignored) {}
+            }
+            if (testTeamId > 0) {
+                try { api.deleteTeam(testTeamId); } catch (Exception ignored) {}
             }
         }
 
@@ -119,6 +123,12 @@ class CoreCDITest {
         @Test @Order(8)
         void createTeamSuccess() {
             api.createTeam("JUnitTeam", "JUT", "#ff0000", "junit-leader");
+            // Stocker l'ID de la team qu'on vient de créer (max ID) pour le cleanup
+            testTeamId = api.getTeams().stream()
+                    .filter(t -> t.name().equals("JUnitTeam"))
+                    .mapToInt(Team::id)
+                    .max()
+                    .orElse(-1);
         }
 
         @Test @Order(9)
@@ -395,6 +405,73 @@ class CoreCDITest {
             ApiException ex = assertThrows(ApiException.class,
                     () -> anon.getPlayers());
             assertEquals(401, ex.getStatusCode());
+        }
+
+        // 3. Tests transaction / money
+
+        @Test @Order(43)
+        void createTransactionMissingFields() {
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> api.createTransaction(0, "", 0, "", 0));
+            assertEquals(400, ex.getStatusCode());
+        }
+
+        @Test @Order(44)
+        void createTransactionUnauthorized() {
+            CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> anon.createTransaction(1, TEST_UUID, 100.0, "test", 1));
+            assertEquals(401, ex.getStatusCode());
+        }
+
+        @Test @Order(45)
+        void createTransactionSuccess() {
+            Team jUnitTeam = api.getTeams().stream()
+                    .filter(t -> t.name().equals("JUnitTeam"))
+                    .findFirst()
+                    .orElseThrow();
+            api.createTransaction(jUnitTeam.id(), TEST_UUID, 42.5, "vente de ressources", 3);
+        }
+
+        @Test @Order(46)
+        void getTeamTransactionsUnauthorized() {
+            CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> anon.getTeamTransactions(1));
+            assertEquals(401, ex.getStatusCode());
+        }
+
+        @Test @Order(47)
+        void getTeamTransactionsSuccess() {
+            Team jUnitTeam = api.getTeams().stream()
+                    .filter(t -> t.name().equals("JUnitTeam"))
+                    .findFirst()
+                    .orElseThrow();
+            List<Transaction> transactions = api.getTeamTransactions(jUnitTeam.id());
+            assertNotNull(transactions);
+            assertTrue(transactions.size() >= 1);
+            Transaction tx = transactions.get(transactions.size() - 1);
+            assertEquals(42.5, tx.totalValue(), 0.001);
+            assertEquals("vente de ressources", tx.reason());
+            assertEquals(3, tx.quantity());
+        }
+
+        @Test @Order(48)
+        void getTeamMoneyUnauthorized() {
+            CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> anon.getTeamMoney(1));
+            assertEquals(401, ex.getStatusCode());
+        }
+
+        @Test @Order(49)
+        void getTeamMoneySuccess() {
+            Team jUnitTeam = api.getTeams().stream()
+                    .filter(t -> t.name().equals("JUnitTeam"))
+                    .findFirst()
+                    .orElseThrow();
+            double money = api.getTeamMoney(jUnitTeam.id());
+            assertTrue(money >= 42.5);
         }
     }
 }
