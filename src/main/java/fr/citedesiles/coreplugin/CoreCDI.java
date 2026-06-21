@@ -134,6 +134,22 @@ public class CoreCDI {
         request("DELETE", "/players/" + uuid, null);
     }
 
+    public void setPlayerTeam(String uuid, int team) {
+        JsonObject body = new JsonObject();
+        body.addProperty("team", team);
+        request("POST", "/players/" + uuid + "/team", body);
+    }
+
+    public void setPlayerTeam(String uuid, Team team) {
+        setPlayerTeam(uuid, team.id());
+    }
+
+    public void setPlayerName(String uuid, String name) {
+        JsonObject body = new JsonObject();
+        body.addProperty("name", name);
+        request("POST", "/players/" + uuid + "/name", body);
+    }
+
     // team
 
     public List<Team> getTeams() {

@@ -339,6 +339,49 @@ class CoreCDITest {
         }
 
         @Test @Order(36)
+        void setPlayerTeamUnauthorized() {
+            CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> anon.setPlayerTeam(TEST_UUID, 1));
+            assertEquals(401, ex.getStatusCode());
+        }
+
+        @Test @Order(37)
+        void setPlayerTeamSuccess() {
+            api.setPlayerTeam(TEST_UUID, 2);
+            Player p = api.getPlayer(TEST_UUID);
+            assertEquals(2, p.team());
+        }
+
+        @Test @Order(38)
+        void setPlayerTeamWithTeamObject() {
+            Team jUnitTeam = api.getTeams().stream()
+                    .filter(t -> t.name().equals("JUnitTeam"))
+                    .findFirst()
+                    .orElseThrow();
+            api.setPlayerTeam(TEST_UUID, jUnitTeam);
+            Player p = api.getPlayer(TEST_UUID);
+            assertEquals(jUnitTeam.id(), p.team());
+        }
+
+        @Test @Order(39)
+        void setPlayerNameUnauthorized() {
+            CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> anon.setPlayerName(TEST_UUID, "nouveau-nom"));
+            assertEquals(401, ex.getStatusCode());
+        }
+
+        @Test @Order(40)
+        void setPlayerNameSuccess() {
+            api.setPlayerName(TEST_UUID, "JUnitRenamed");
+            Player p = api.getPlayer(TEST_UUID);
+            assertEquals("JUnitRenamed", p.name());
+            // Restaurer le nom original pour les autres tests
+            api.setPlayerName(TEST_UUID, TEST_NAME);
+        }
+
+        @Test @Order(41)
         void deletePlayerSuccess() {
             api.deletePlayer(TEST_UUID);
             ApiException ex = assertThrows(ApiException.class,
@@ -346,7 +389,7 @@ class CoreCDITest {
             assertEquals(404, ex.getStatusCode());
         }
 
-        @Test @Order(37)
+        @Test @Order(42)
         void unauthorizedReturns401() {
             CoreCDI anon = new CoreCDI(apiUrl, "bidon");
             ApiException ex = assertThrows(ApiException.class,
