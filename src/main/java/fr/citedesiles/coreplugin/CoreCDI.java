@@ -70,13 +70,15 @@ public class CoreCDI {
         request("DELETE", "/token", body);
     }
 
-    public void createTeam(String name, String tag, String color, String leader) {
+    public Team createTeam(String name, String tag, String color, String leader) {
         JsonObject body = new JsonObject();
         body.addProperty("name", name);
         body.addProperty("tag", tag);
         body.addProperty("color", color);
         body.addProperty("leader", leader);
-        request("POST", "/teams", body);
+        JsonObject res = request("POST", "/teams", body);
+        int id = res.get("id").getAsInt();
+        return getTeam(id);
     }
 
     public String requestVerification(String uuid, String playerName) {
@@ -179,6 +181,30 @@ public class CoreCDI {
 
     public void deleteTeam(int id) {
         request("DELETE", "/teams/" + id, null);
+    }
+
+    public void setTeamColor(int id, String color) {
+        JsonObject body = new JsonObject();
+        body.addProperty("color", color);
+        request("POST", "/teams/" + id + "/color", body);
+    }
+
+    public void setTeamLeader(int id, String leaderUuid) {
+        JsonObject body = new JsonObject();
+        body.addProperty("leader", leaderUuid);
+        request("POST", "/teams/" + id + "/leader", body);
+    }
+
+    public void setTeamTag(int id, String tag) {
+        JsonObject body = new JsonObject();
+        body.addProperty("tag", tag);
+        request("POST", "/teams/" + id + "/tag", body);
+    }
+
+    public void setTeamName(int id, String name) {
+        JsonObject body = new JsonObject();
+        body.addProperty("name", name);
+        request("POST", "/teams/" + id + "/name", body);
     }
 
     // transaction

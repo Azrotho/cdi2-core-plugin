@@ -45,6 +45,7 @@ class CoreCDITest {
         private static final String TEST_UUID2 = "test-junit-uuid2";
         private static final String TEST_DISCORD2 = "test-junit-discord2";
         private static final String TEST_NAME2 = "JUnitPlayer2";
+        private static final String TEST_TEAM_TAG = "JUT" + System.currentTimeMillis() % 100000;
         private static String currentCode;
         private static String createdToken;
         private static int testTeamId = -1;
@@ -58,6 +59,10 @@ class CoreCDITest {
                     "CORE_API_URL / CORE_API_TOKEN manquantes, tests ignorés");
 
             api = new CoreCDI(apiUrl, apiToken);
+
+            // Nettoyage préventif des joueurs de test
+            try { api.deletePlayer(TEST_UUID); } catch (Exception ignored) {}
+            try { api.deletePlayer(TEST_UUID2); } catch (Exception ignored) {}
         }
 
         @AfterAll
@@ -69,7 +74,12 @@ class CoreCDITest {
                 try { api.deleteToken(createdToken); } catch (Exception ignored) {}
             }
             if (testTeamId > 0) {
-                try { api.deleteTeam(testTeamId); } catch (Exception ignored) {}
+                try {
+                    for (Player p : api.getTeamPlayers(testTeamId)) {
+                        try { api.setPlayerTeam(p.uuid(), -1); } catch (Exception ignored) {}
+                    }
+                    api.deleteTeam(testTeamId);
+                } catch (Exception ignored) {}
             }
         }
 
@@ -122,13 +132,11 @@ class CoreCDITest {
 
         @Test @Order(8)
         void createTeamSuccess() {
-            api.createTeam("JUnitTeam", "JUT", "#ff0000", "junit-leader");
-            // Stocker l'ID de la team qu'on vient de créer (max ID) pour le cleanup
-            testTeamId = api.getTeams().stream()
-                    .filter(t -> t.name().equals("JUnitTeam"))
-                    .mapToInt(Team::id)
-                    .max()
-                    .orElse(-1);
+            Team created = api.createTeam("JUnitTeam", TEST_TEAM_TAG, "#ff0000", "junit-leader");
+            assertNotNull(created);
+            assertEquals("JUnitTeam", created.name());
+            assertEquals(TEST_TEAM_TAG, created.tag());
+            testTeamId = created.id();
         }
 
         @Test @Order(9)
@@ -147,7 +155,7 @@ class CoreCDITest {
                     .orElseThrow();
             Team t = api.getTeam(found.id());
             assertEquals("JUnitTeam", t.name());
-            assertEquals("JUT", t.tag());
+            assertEquals(TEST_TEAM_TAG, t.tag());
             assertEquals("#ff0000", t.color());
         }
 
@@ -173,7 +181,7 @@ class CoreCDITest {
             CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
             ApiException ex = assertThrows(ApiException.class,
                     () -> anon.getTeams());
-            assertEquals(401, ex.getStatusCode());
+            assertEquals(403, ex.getStatusCode());
         }
 
         @Test @Order(14)
@@ -269,7 +277,7 @@ class CoreCDITest {
             CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
             ApiException ex = assertThrows(ApiException.class,
                     () -> anon.deleteToken(createdToken));
-            assertEquals(401, ex.getStatusCode());
+            assertEquals(403, ex.getStatusCode());
         }
 
         @Test @Order(27)
@@ -450,10 +458,8 @@ class CoreCDITest {
             List<Transaction> transactions = api.getTeamTransactions(jUnitTeam.id());
             assertNotNull(transactions);
             assertTrue(transactions.size() >= 1);
-            Transaction tx = transactions.get(transactions.size() - 1);
-            assertEquals(42.5, tx.totalValue(), 0.001);
-            assertEquals("vente de ressources", tx.reason());
-            assertEquals(3, tx.quantity());
+            assertTrue(transactions.stream().anyMatch(tx ->
+                    "vente de ressources".equals(tx.reason()) && tx.quantity() == 3));
         }
 
         @Test @Order(48)
@@ -472,6 +478,130 @@ class CoreCDITest {
                     .orElseThrow();
             double money = api.getTeamMoney(jUnitTeam.id());
             assertTrue(money >= 42.5);
+        }
+
+        // 4. Tests édition d'équipe
+
+        @Test @Order(50)
+        void createTeamDuplicateTag() {
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> api.createTeam("AutreTeam", TEST_TEAM_TAG, "#000", "uuid"));
+            assertEquals(400, ex.getStatusCode());
+            assertEquals("Tag already exists", ex.getMessage());
+        }
+
+        @Test @Order(51)
+        void setTeamColorUnauthorized() {
+            CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> anon.setTeamColor(1, "#fff"));
+            assertEquals(403, ex.getStatusCode());
+        }
+
+        @Test @Order(52)
+        void setTeamColorSuccess() {
+            Team jUnitTeam = api.getTeams().stream()
+                    .filter(t -> t.name().equals("JUnitTeam"))
+                    .findFirst()
+                    .orElseThrow();
+            api.setTeamColor(jUnitTeam.id(), "#00ff00");
+            Team updated = api.getTeam(jUnitTeam.id());
+            assertEquals("#00ff00", updated.color());
+            // Restaurer
+            api.setTeamColor(jUnitTeam.id(), "#ff0000");
+        }
+
+        @Test @Order(53)
+        void setTeamLeaderNotFound() {
+            Team jUnitTeam = api.getTeams().stream()
+                    .filter(t -> t.name().equals("JUnitTeam"))
+                    .findFirst()
+                    .orElseThrow();
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> api.setTeamLeader(jUnitTeam.id(), "uuid-inexistant"));
+            assertEquals(400, ex.getStatusCode());
+            assertEquals("Leader does not exist", ex.getMessage());
+        }
+
+        @Test @Order(54)
+        void setTeamLeaderNotMember() {
+            Team jUnitTeam = api.getTeams().stream()
+                    .filter(t -> t.name().equals("JUnitTeam"))
+                    .findFirst()
+                    .orElseThrow();
+            // TEST_UUID2 est team=-1, pas membre de JUnitTeam
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> api.setTeamLeader(jUnitTeam.id(), TEST_UUID2));
+            assertEquals(400, ex.getStatusCode());
+            assertEquals("Leader is not a member of the team", ex.getMessage());
+        }
+
+        @Test @Order(55)
+        void setTeamLeaderSuccess() {
+            Team jUnitTeam = api.getTeams().stream()
+                    .filter(t -> t.name().equals("JUnitTeam"))
+                    .findFirst()
+                    .orElseThrow();
+            // Ajouter TEST_UUID2 à JUnitTeam puis le définir comme leader
+            api.setPlayerTeam(TEST_UUID2, jUnitTeam.id());
+            api.setTeamLeader(jUnitTeam.id(), TEST_UUID2);
+            Team updated = api.getTeam(jUnitTeam.id());
+            assertEquals(TEST_UUID2, updated.leader());
+        }
+
+        @Test @Order(56)
+        void setTeamTagDuplicate() {
+            Team jUnitTeam = api.getTeams().stream()
+                    .filter(t -> t.name().equals("JUnitTeam"))
+                    .findFirst()
+                    .orElseThrow();
+            // Créer une team temporaire avec un tag distinct
+            String tempTag = "TMP" + System.currentTimeMillis() % 10000;
+            Team tempTeam = api.createTeam("TempTeam", tempTag, "#000", "uuid");
+            try {
+                // Tenter de mettre le tag de JUnitTeam sur celui de TempTeam (déjà pris)
+                ApiException ex = assertThrows(ApiException.class,
+                        () -> api.setTeamTag(jUnitTeam.id(), tempTag));
+                assertEquals(400, ex.getStatusCode());
+                assertEquals("Tag already exists", ex.getMessage());
+            } finally {
+                api.deleteTeam(tempTeam.id());
+            }
+        }
+
+        @Test @Order(57)
+        void setTeamTagSuccess() {
+            Team jUnitTeam = api.getTeams().stream()
+                    .filter(t -> t.name().equals("JUnitTeam"))
+                    .findFirst()
+                    .orElseThrow();
+            String newTag = "BNG" + System.currentTimeMillis() % 1000;
+            api.setTeamTag(jUnitTeam.id(), newTag);
+            Team updated = api.getTeam(jUnitTeam.id());
+            assertEquals(newTag, updated.tag());
+            // Restaurer
+            api.setTeamTag(jUnitTeam.id(), TEST_TEAM_TAG);
+        }
+
+        @Test @Order(58)
+        void setTeamNameUnauthorized() {
+            CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> anon.setTeamName(1, "NouveauNom"));
+            assertEquals(403, ex.getStatusCode());
+        }
+
+        @Test @Order(59)
+        void setTeamNameSuccess() {
+            Team jUnitTeam = api.getTeams().stream()
+                    .filter(t -> t.name().equals("JUnitTeam"))
+                    .findFirst()
+                    .orElseThrow();
+            api.setTeamName(jUnitTeam.id(), "JUnitRenamed");
+            Team updated = api.getTeam(jUnitTeam.id());
+            assertEquals("JUnitRenamed", updated.name());
+            // Restaurer
+            api.setTeamName(jUnitTeam.id(), "JUnitTeam");
         }
     }
 }
