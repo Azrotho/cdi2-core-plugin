@@ -234,6 +234,38 @@ public class CoreCDI {
         return res.get("total_money").getAsDouble();
     }
 
+    // economy
+
+    public List<Item> getEconomyItems() {
+        JsonObject res = request("GET", "/economy/items", null);
+        JsonArray arr = res.getAsJsonArray("items");
+        List<Item> items = new ArrayList<>();
+        for (JsonElement e : arr) {
+            items.add(Item.fromJson(e.getAsJsonObject()));
+        }
+        return items;
+    }
+
+    public Item getEconomyItem(String material) {
+        JsonObject res = request("GET", "/economy/items/" + material, null);
+        return Item.fromJson(res.getAsJsonObject("item"));
+    }
+
+    public List<JsonObject> getEconomyNPCs() {
+        JsonObject res = request("GET", "/economy/npcs", null);
+        JsonArray arr = res.getAsJsonArray("npcs");
+        List<JsonObject> npcs = new ArrayList<>();
+        for (JsonElement e : arr) {
+            npcs.add(e.getAsJsonObject());
+        }
+        return npcs;
+    }
+
+    public NPC getEconomyNPC(String npcId) {
+        JsonObject res = request("GET", "/economy/npcs/" + npcId, null);
+        return NPC.fromJson(res.getAsJsonObject("npc"));
+    }
+
     // interne
 
     private JsonObject request(String method, String path, JsonObject body) {

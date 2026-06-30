@@ -1,5 +1,6 @@
 package fr.citedesiles.coreplugin;
 
+import com.google.gson.JsonObject;
 import fr.citedesiles.coreplugin.CoreCDI.ApiException;
 import org.junit.jupiter.api.*;
 
@@ -602,6 +603,108 @@ class CoreCDITest {
             assertEquals("JUnitRenamed", updated.name());
             // Restaurer
             api.setTeamName(jUnitTeam.id(), "JUnitTeam");
+        }
+
+        // 5. Tests économie
+
+        @Test @Order(60)
+        void getEconomyItemsUnauthorized() {
+            CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> anon.getEconomyItems());
+            assertEquals(403, ex.getStatusCode());
+        }
+
+        @Test @Order(61)
+        void getEconomyItemsSuccess() {
+            List<Item> items = api.getEconomyItems();
+            assertNotNull(items);
+            assertTrue(items.size() >= 1);
+            for (Item item : items) {
+                assertNotNull(item.material());
+                // les valeurs peuvent être négatives (items troll)
+            }
+        }
+
+        @Test @Order(62)
+        void getEconomyItemByMaterialNotFound() {
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> api.getEconomyItem("material_inexistant_xyz"));
+            assertEquals(404, ex.getStatusCode());
+        }
+
+        @Test @Order(63)
+        void getEconomyItemByMaterialUnauthorized() {
+            CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> anon.getEconomyItem("anvil"));
+            assertEquals(403, ex.getStatusCode());
+        }
+
+        @Test @Order(64)
+        void getEconomyItemByMaterialSuccess() {
+            Item item = api.getEconomyItem("anvil");
+            assertNotNull(item);
+            assertEquals("anvil", item.material());
+            // les valeurs peuvent être négatives (items troll)
+        }
+
+        @Test @Order(65)
+        void getEconomyNPCsUnauthorized() {
+            CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> anon.getEconomyNPCs());
+            assertEquals(403, ex.getStatusCode());
+        }
+
+        @Test @Order(66)
+        void getEconomyNPCsSuccess() {
+            List<JsonObject> npcs = api.getEconomyNPCs();
+            assertNotNull(npcs);
+            for (JsonObject npc : npcs) {
+                assertTrue(npc.has("npc"));
+                assertTrue(npc.has("release_day"));
+            }
+        }
+
+        @Test @Order(67)
+        void getEconomyNPCNotFound() {
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> api.getEconomyNPC("npc_inexistant_xyz"));
+            assertEquals(404, ex.getStatusCode());
+        }
+
+        @Test @Order(68)
+        void getEconomyNPCUnauthorized() {
+            CoreCDI anon = new CoreCDI(apiUrl, "mauvais-token");
+            ApiException ex = assertThrows(ApiException.class,
+                    () -> anon.getEconomyNPC("test"));
+            assertEquals(403, ex.getStatusCode());
+        }
+
+        @Test @Order(69)
+        void getEconomyNPCSuccess() {
+            List<JsonObject> npcs = api.getEconomyNPCs();
+            assumeTrue(npcs.size() >= 1, "Aucun PNJ en base, test ignoré");
+            String npcId = npcs.get(0).get("npc").getAsString();
+            NPC npc = api.getEconomyNPC(npcId);
+            assertNotNull(npc);
+            assertEquals(npcId, npc.npc());
+            assertTrue(npc.releaseDay() >= 0);
+        }
+
+        @Test @Order(70)
+        void getEconomyNPCItemsNotEmpty() {
+            List<JsonObject> npcs = api.getEconomyNPCs();
+            assumeTrue(npcs.size() >= 1, "Aucun PNJ en base, test ignoré");
+            String npcId = npcs.get(0).get("npc").getAsString();
+            NPC npc = api.getEconomyNPC(npcId);
+            assertNotNull(npc.items());
+            assertTrue(npc.items().size() >= 1);
+            for (NPCItem item : npc.items()) {
+                assertNotNull(item.material());
+                assertTrue(item.releaseDay() >= 0);
+            }
         }
     }
 }
