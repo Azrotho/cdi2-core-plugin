@@ -4,7 +4,7 @@ import com.google.gson.JsonObject;
 
 import java.util.List;
 
-public record Team(int id, String name, String tag, String color, String leader, int staff) {
+public record Team(int id, String name, String tag, String color, String leader, int staff, int verification) {
 
     static Team fromJson(JsonObject json) {
         return new Team(
@@ -13,7 +13,8 @@ public record Team(int id, String name, String tag, String color, String leader,
                 json.get("tag").getAsString(),
                 json.get("color").getAsString(),
                 json.get("leader").getAsString(),
-                json.get("staff").getAsInt()
+                json.get("staff").getAsInt(),
+                json.get("verification").getAsInt()
         );
     }
 

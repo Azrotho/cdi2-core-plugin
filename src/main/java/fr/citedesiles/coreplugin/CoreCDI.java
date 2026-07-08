@@ -266,6 +266,10 @@ public class CoreCDI {
         return NPC.fromJson(res.getAsJsonObject("npc"));
     }
 
+    public void verifyTeam(int teamId) {
+        request("POST", "/team/" + teamId + "/verify", null);
+    }
+
     // interne
 
     private JsonObject request(String method, String path, JsonObject body) {
