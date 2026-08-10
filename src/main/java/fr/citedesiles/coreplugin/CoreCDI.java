@@ -312,6 +312,52 @@ public class CoreCDI {
         return counts;
     }
 
+    // stats
+
+    /**
+     * Lit la valeur d'une stat pour un joueur.
+     * @return la valeur de la stat, ou 0 si elle n'existe pas
+     */
+    public long getStat(String uuid, String stat) {
+        try {
+            JsonObject res = request("GET", "/stat/" + uuid + "/" + stat, null);
+            return res.get("value").getAsLong();
+        } catch (ApiException e) {
+            if (e.getStatusCode() == 404) {
+                return 0;
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Incrémente la valeur d'une stat pour un joueur (upsert additif).
+     */
+    public void addStat(String uuid, String stat, long value) {
+        JsonObject body = new JsonObject();
+        body.addProperty("value", value);
+        request("POST", "/stat/add/" + uuid + "/" + stat, body);
+    }
+
+    /**
+     * Lit la somme des valeurs d'une stat pour toute une équipe (via ses joueurs).
+     * @return la somme, ou 0 si aucune donnée
+     */
+    public double getTeamStat(int teamId, String stat) {
+        try {
+            JsonObject res = request("GET", "/stat/team/" + teamId + "/" + stat, null);
+            if (res.has("value") && !res.get("value").isJsonNull()) {
+                return res.get("value").getAsDouble();
+            }
+            return 0;
+        } catch (ApiException e) {
+            if (e.getStatusCode() == 404) {
+                return 0;
+            }
+            throw e;
+        }
+    }
+
     // interne
 
     private JsonObject request(String method, String path, JsonObject body) {
