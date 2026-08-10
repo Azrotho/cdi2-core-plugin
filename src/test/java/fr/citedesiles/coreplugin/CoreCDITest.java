@@ -23,6 +23,23 @@ class CoreCDITest {
     }
 
     @Test
+    void headFromJson() {
+        JsonObject json = new JsonObject();
+        json.addProperty("id", 42);
+        json.addProperty("team", 3);
+        json.addProperty("x", 100);
+        json.addProperty("y", 64);
+        json.addProperty("z", -200);
+
+        Head head = Head.fromJson(json);
+        assertEquals(42, head.id());
+        assertEquals(3, head.team());
+        assertEquals(100, head.x());
+        assertEquals(64, head.y());
+        assertEquals(-200, head.z());
+    }
+
+    @Test
     void networkErrorWhenServerDown() {
         CoreCDI dead = new CoreCDI("http://127.0.0.1:19999", "token");
         ApiException ex = assertThrows(ApiException.class, () -> dead.ping());

@@ -12,7 +12,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Client HTTP pour l'API CDI2 (cdi2-core-server).
@@ -268,6 +270,46 @@ public class CoreCDI {
 
     public void verifyTeam(int teamId) {
         request("POST", "/team/" + teamId + "/verify", null);
+    }
+
+    // heads
+
+    public boolean addHead(int teamId, int x, int y, int z) {
+        JsonObject body = new JsonObject();
+        body.addProperty("team", teamId);
+        body.addProperty("x", x);
+        body.addProperty("y", y);
+        body.addProperty("z", z);
+        try {
+            request("POST", "/heads", body);
+            return true;
+        } catch (ApiException e) {
+            if (e.getStatusCode() == 409) {
+                return false;
+            }
+            throw e;
+        }
+    }
+
+    public List<Head> getTeamHeads(int teamId) {
+        JsonObject res = request("GET", "/heads/team/" + teamId, null);
+        JsonArray arr = res.getAsJsonArray("heads");
+        List<Head> heads = new ArrayList<>();
+        for (JsonElement e : arr) {
+            heads.add(Head.fromJson(e.getAsJsonObject()));
+        }
+        return heads;
+    }
+
+    public Map<Integer, Integer> getHeadCounts() {
+        JsonObject res = request("GET", "/heads/counts", null);
+        JsonArray arr = res.getAsJsonArray("counts");
+        Map<Integer, Integer> counts = new HashMap<>();
+        for (JsonElement e : arr) {
+            JsonObject obj = e.getAsJsonObject();
+            counts.put(obj.get("team").getAsInt(), obj.get("count").getAsInt());
+        }
+        return counts;
     }
 
     // interne
